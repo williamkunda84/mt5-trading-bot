@@ -1,0 +1,17 @@
+# Railway deployment — single service (backend serves built frontend)
+# Deploy from the `forex-bot/` directory as root.
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "backend/Dockerfile"
+buildCommand = "cd frontend && npm ci && npm run build && cp -r dist ../backend/frontend/"
+
+[deploy]
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "forexbot"
