@@ -79,3 +79,32 @@ class WalletSnapshot(Base):
     losing_trades = Column(Integer, default=0)
     total_profit = Column(Float, default=0.0)
     win_rate = Column(Float, default=0.0)
+
+
+class TradeSetup(Base):
+    """
+    Detected trade setup from the multi-strategy scanner.
+    status: forming | confirmed | invalidated | expired
+    """
+    __tablename__ = "trade_setups"
+
+    id = Column(String, primary_key=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    timeframe = Column(String(10), nullable=False)
+    direction = Column(String(10), nullable=False)       # buy | sell
+    entry_price = Column(Float, nullable=False)
+    stop_loss = Column(Float, nullable=False)
+    take_profit_1 = Column(Float, nullable=False)
+    take_profit_2 = Column(Float, nullable=False)
+    take_profit_3 = Column(Float, nullable=False)
+    confidence = Column(Float, nullable=False)           # 0–100
+    rr_ratio = Column(Float, default=2.0)
+    strategies_confirmed = Column(JSON)                  # ["EMA Confluence", ...]
+    strategy_details = Column(JSON)                      # [{name, confidence, notes, eta_minutes}]
+    status = Column(String(20), default="forming", index=True)
+    eta_minutes = Column(Integer, nullable=True)         # None = already confirmed
+    alert_sent = Column(Boolean, default=False)
+    detected_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    notes = Column(Text, nullable=True)

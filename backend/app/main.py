@@ -19,17 +19,16 @@ scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Init DB tables
     init_db()
     log.info("Database initialised")
-
-    # Seed default bot config
     _seed_config()
 
-    # Start scheduler – bot tick every 30 seconds
+    # Bot tick every 30 s
     scheduler.add_job(_scheduled_tick, "interval", seconds=30, id="bot_tick")
+    # Setup scanner every 60 s
+    scheduler.add_job(_scheduled_setup_scan, "interval", seconds=60, id="setup_scan")
     scheduler.start()
-    log.info("Scheduler started (bot tick every 30s)")
+    log.info("Scheduler started (bot=30s, setups=60s)")
 
     yield
 
@@ -42,7 +41,20 @@ async def _scheduled_tick():
     try:
         await tick(db)
     except Exception as exc:
-        log.error("Scheduled tick failed: %s", exc)
+        log.error("Bot tick failed: %s", exc)
+    finally:
+        db.close()
+
+
+async def _scheduled_setup_scan():
+    from app.api.setups import run_setup_scan
+    from app.api.ws import maybe_broadcast_alerts
+    db = SessionLocal()
+    try:
+        await run_setup_scan(db)
+        await maybe_broadcast_alerts(db)
+    except Exception as exc:
+        log.error("Setup scan failed: %s", exc)
     finally:
         db.close()
 
@@ -66,8 +78,8 @@ def _seed_config():
 
 app = FastAPI(
     title="ForexBot API",
-    version="1.0.0",
-    description="AI-powered MetaTrader 5 trading bot",
+    version="1.1.0",
+    description="AI-powered MetaTrader 5 trading bot with market analytics",
     lifespan=lifespan,
 )
 
@@ -79,13 +91,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# API routes
-from app.api import trades, bot, analysis, stats, ws  # noqa: E402
+from app.api import trades, bot, analysis, stats, ws, setups  # noqa: E402
 
 app.include_router(trades.router, prefix="/api")
 app.include_router(bot.router, prefix="/api")
 app.include_router(analysis.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
+app.include_router(setups.router, prefix="/api")
 app.include_router(ws.router)
 
 
@@ -94,7 +106,7 @@ async def health():
     return {"status": "ok", "mode": settings.trading_mode}
 
 
-# Serve built frontend (for Railway single-service deployment)
+# Serve built frontend (Railway single-service deployment)
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
 if os.path.exists(frontend_path):
     app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")

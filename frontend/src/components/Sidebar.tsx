@@ -1,13 +1,14 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Bot, TrendingUp, History,
-  BarChart2, Wifi, WifiOff,
+  BarChart2, Wifi, WifiOff, Telescope,
 } from "lucide-react";
 import { useLive } from "../hooks/useLive";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/bot", label: "Bot Control", icon: Bot },
+  { to: "/market-analytics", label: "Market Analytics", icon: Telescope, badge: "NEW" },
   { to: "/analysis", label: "Analysis", icon: BarChart2 },
   { to: "/trades", label: "Trades", icon: TrendingUp },
   { to: "/history", label: "History", icon: History },
@@ -44,7 +45,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-3 space-y-0.5">
-        {nav.map(({ to, label, icon: Icon }) => (
+        {nav.map(({ to, label, icon: Icon, badge }) => (
           <NavLink
             key={to}
             to={to}
@@ -58,7 +59,12 @@ export default function Sidebar() {
             }
           >
             <Icon size={15} />
-            {label}
+            <span className="flex-1">{label}</span>
+            {badge && (
+              <span className="text-[8px] font-bold bg-yellow-400/20 text-yellow-400 border border-yellow-400/30 px-1 py-0.5 rounded">
+                {badge}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
