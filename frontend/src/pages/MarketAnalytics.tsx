@@ -109,11 +109,12 @@ export default function MarketAnalytics() {
   const load = useCallback(async (force = false) => {
     setScanning(true);
     try {
-      const [scanRes, alertRes] = await Promise.all([
-        api.scanSetups(force).catch(() => ({ setups: [] })),
+      const scanRes = await api.scanSetups(force).catch(() => ({ scanned_at: null }));
+      const [setupsRes, alertRes] = await Promise.all([
+        api.listSetups().catch(() => []),
         api.getAlerts().catch(() => []),
       ]);
-      setSetups(scanRes.setups ?? []);
+      setSetups(setupsRes);
       setAlerts(alertRes);
       setScannedAt(scanRes.scanned_at ?? new Date().toISOString());
     } finally {
