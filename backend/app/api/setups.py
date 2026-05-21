@@ -11,6 +11,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone, timedelta
+
+def _now():
+    """Naive UTC datetime — compatible with both SQLite and PostgreSQL."""
+    return datetime.utcnow()
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, Query, BackgroundTasks
@@ -62,7 +66,7 @@ def _serialize(s: TradeSetup) -> dict:
 
 def _result_to_model(r, db: Session) -> TradeSetup:
     """Persist a TradeSetupResult → TradeSetup DB row (upsert by symbol+tf+dir)."""
-    now = datetime.now(tz=timezone.utc)
+    now = _now()
 
     # Deduplicate: if an identical setup (symbol+tf+direction+status!=expired) exists
     # in the last 2 hours, skip to avoid flooding.
@@ -146,12 +150,12 @@ async def run_setup_scan(db: Session) -> List[dict]:
         except Exception:
             pass
 
-    # Expire old forming setups
-    cutoff = datetime.now(tz=timezone.utc) - timedelta(hours=4)
+    # Expire old forming setups (naive datetime for SQLite compatibility)
+    cutoff = datetime.utcnow() - timedelta(hours=4)
     db.query(TradeSetup).filter(
         TradeSetup.status == "forming",
         TradeSetup.detected_at < cutoff,
-    ).update({"status": "expired"})
+    ).update({"status": "expired"}, synchronize_session=False)
     db.commit()
 
     _scan_cache = serialized
@@ -193,7 +197,7 @@ async def live_scan(
 ):
     """Trigger a live scan; returns cached results if fresh enough."""
     global _scan_cache, _scan_at
-    now = datetime.now(tz=timezone.utc)
+    now = _now()
 
     if force or _scan_at is None or (now - _scan_at).total_seconds() > CACHE_TTL_SECONDS:
         results = await run_setup_scan(db)
@@ -212,7 +216,7 @@ async def get_alerts(
     db: Session = Depends(get_db),
 ):
     """Setups forming within the next 60 minutes (alert candidates)."""
-    now = datetime.now(tz=timezone.utc)
+    now = _now()
     cutoff = now - timedelta(hours=2)
 
     # Confirmed setups (eta=0) + forming setups with eta <= 60

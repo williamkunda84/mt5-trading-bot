@@ -366,15 +366,30 @@ class MetaApiConnector(MT5Connector):
 
 def get_connector() -> MT5Connector:
     mode = settings.trading_mode
+
+    # Explicit direct mode — local MT5 terminal (Windows)
+    if mode == "direct":
+        try:
+            from app.services.mt5_direct import DirectMT5Connector
+            return DirectMT5Connector()
+        except ImportError as e:
+            raise RuntimeError(
+                "TRADING_MODE=direct requires the MetaTrader5 package (Windows only). "
+                f"Install it with: pip install MetaTrader5\nOriginal error: {e}"
+            )
+
+    # MetaAPI cloud bridge (live/demo on Linux/Railway)
     if mode in ("live", "demo") and settings.metaapi_token and settings.metaapi_account_id:
         return MetaApiConnector()
-    # Windows direct MT5
+
+    # Fallback: direct MT5 if on Windows and no MetaAPI creds
     if mode in ("live", "demo"):
         try:
-            from app.services.mt5_direct import DirectMT5Connector  # type: ignore
+            from app.services.mt5_direct import DirectMT5Connector
             return DirectMT5Connector()
         except ImportError:
             pass
+
     return SimulatedConnector()
 
 

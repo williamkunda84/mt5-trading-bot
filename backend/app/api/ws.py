@@ -42,7 +42,7 @@ async def maybe_broadcast_alerts(db):
     Called from the scheduler tick.
     """
     from app.models import TradeSetup
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.utcnow()
     cutoff = now - timedelta(hours=2)
 
     unsent = db.query(TradeSetup).filter(
